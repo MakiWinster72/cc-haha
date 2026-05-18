@@ -219,6 +219,7 @@ function BackgroundTaskEventCard({ message }: { message: BackgroundTaskEvent }) 
   const isStopped = task.status === 'stopped'
   const duration = formatBackgroundTaskDuration(task.usage?.durationMs)
   const detail = task.summary || task.lastToolName || task.description || task.outputFile || task.taskId
+  const label = getBackgroundTaskLabel(task.taskType, t)
 
   return (
     <div className="mb-2">
@@ -242,7 +243,7 @@ function BackgroundTaskEventCard({ message }: { message: BackgroundTaskEvent }) 
           <div className="flex min-w-0 items-center gap-2">
             <Bot size={14} strokeWidth={2.25} className="shrink-0 text-[var(--color-text-tertiary)]" aria-hidden="true" />
             <span className="shrink-0 text-[12px] font-medium text-[var(--color-text-primary)]">
-              {task.taskType || t('chat.backgroundAgents.agent')}
+              {label}
             </span>
             <span className="shrink-0 text-[11px] text-[var(--color-text-tertiary)]">
               {t(`chat.backgroundAgents.status.${task.status}`)}
@@ -265,6 +266,25 @@ function BackgroundTaskEventCard({ message }: { message: BackgroundTaskEvent }) 
       </div>
     </div>
   )
+}
+
+function isAgentBackgroundTaskMessage(message: UIMessage): boolean {
+  if (message.type !== 'background_task') return false
+  if (message.task.taskType === 'local_agent' || message.task.taskType === 'remote_agent') {
+    return true
+  }
+  return /^Agent (?:(?:"[^"]+" )?(completed|was stopped)|(?:"[^"]+" )?failed(?::|$))/.test(
+    message.task.summary ?? '',
+  )
+}
+
+function getBackgroundTaskLabel(
+  taskType: string | undefined,
+  t: (key: TranslationKey, params?: Record<string, string | number>) => string,
+): string {
+  if (taskType === 'local_bash') return t('chat.backgroundTasks.command')
+  if (taskType === 'local_workflow') return t('chat.backgroundTasks.workflow')
+  return t('chat.backgroundTasks.task')
 }
 
 function SelectableChatMessage({
@@ -377,6 +397,9 @@ export function buildRenderModel(messages: UIMessage[]): RenderModel {
     if (msg.type === 'assistant_text' && !msg.content.trim()) {
       continue
     }
+    if (isAgentBackgroundTaskMessage(msg)) {
+      continue
+    }
 
     if (msg.type === 'tool_result' && toolUseIds.has(msg.toolUseId)) {
       continue
@@ -412,7 +435,7 @@ function isTurnResponseMessage(message: UIMessage) {
     message.type === 'assistant_text' ||
     message.type === 'tool_use' ||
     message.type === 'tool_result' ||
-    message.type === 'background_task' ||
+    (message.type === 'background_task' && !isAgentBackgroundTaskMessage(message)) ||
     message.type === 'error' ||
     message.type === 'task_summary'
   )

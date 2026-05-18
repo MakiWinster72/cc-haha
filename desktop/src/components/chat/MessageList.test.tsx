@@ -200,7 +200,7 @@ describe('MessageList nested tool calls', () => {
     expect(screen.getByText('Budget: 0 / unlimited tokens')).toBeTruthy()
   })
 
-  it('renders background agent progress inline in the transcript', () => {
+  it('renders non-agent background progress inline in the transcript', () => {
     useChatStore.setState({
       sessions: {
         [ACTIVE_TAB]: makeSessionState({
@@ -212,14 +212,14 @@ describe('MessageList nested tool calls', () => {
               timestamp: 1,
             },
             {
-              id: 'background-task-agent-1',
+              id: 'background-task-shell-1',
               type: 'background_task',
               timestamp: 2,
               task: {
-                taskId: 'agent-task-1',
-                toolUseId: 'agent-tool-1',
+                taskId: 'shell-task-1',
+                toolUseId: 'shell-tool-1',
                 status: 'running',
-                taskType: 'local_agent',
+                taskType: 'local_bash',
                 summary: 'Running Playwright checks',
                 usage: {
                   totalTokens: 1200,
@@ -244,27 +244,27 @@ describe('MessageList nested tool calls', () => {
     render(<MessageList />)
 
     const card = screen.getByTestId('background-task-event-card')
-    expect(card.textContent).toContain('local_agent')
+    expect(card.textContent).toContain('Background command')
     expect(card.textContent).toContain('running')
     expect(card.textContent).toContain('Running Playwright checks')
     expect(card.textContent).toContain('1,200 tokens')
     expect(card.textContent).toContain('45s')
   })
 
-  it('renders stopped background agents as neutral transcript events', () => {
+  it('renders stopped non-agent background tasks as neutral transcript events', () => {
     useChatStore.setState({
       sessions: {
         [ACTIVE_TAB]: makeSessionState({
           messages: [{
-            id: 'background-task-agent-stopped',
+            id: 'background-task-shell-stopped',
             type: 'background_task',
             timestamp: 2,
             task: {
-              taskId: 'agent-task-stopped',
-              toolUseId: 'agent-tool-stopped',
+              taskId: 'shell-task-stopped',
+              toolUseId: 'shell-tool-stopped',
               status: 'stopped',
-              taskType: 'local_agent',
-              summary: 'Agent "Code review for todo app" was stopped',
+              taskType: 'local_bash',
+              summary: 'Command "bun test" was stopped',
               startedAt: 1,
               updatedAt: 2,
             },
@@ -279,6 +279,77 @@ describe('MessageList nested tool calls', () => {
     expect(card.getAttribute('data-status')).toBe('stopped')
     expect(card.textContent).toContain('stopped')
     expect(card.querySelector('.text-\\[var\\(--color-error\\)\\]')).toBeNull()
+  })
+
+  it('uses user-facing labels for workflow and unknown background tasks', () => {
+    useChatStore.setState({
+      sessions: {
+        [ACTIVE_TAB]: makeSessionState({
+          messages: [
+            {
+              id: 'background-task-workflow',
+              type: 'background_task',
+              timestamp: 2,
+              task: {
+                taskId: 'workflow-task',
+                status: 'running',
+                taskType: 'local_workflow',
+                summary: 'Running release checklist',
+                startedAt: 1,
+                updatedAt: 2,
+              },
+            },
+            {
+              id: 'background-task-unknown',
+              type: 'background_task',
+              timestamp: 3,
+              task: {
+                taskId: 'unknown-task',
+                status: 'completed',
+                summary: 'Finished background work',
+                startedAt: 1,
+                updatedAt: 3,
+              },
+            },
+          ],
+        }),
+      },
+    })
+
+    render(<MessageList />)
+
+    const cards = screen.getAllByTestId('background-task-event-card')
+    expect(cards).toHaveLength(2)
+    expect(cards[0]?.textContent).toContain('Background workflow')
+    expect(cards[1]?.textContent).toContain('Background task')
+  })
+
+  it('does not render agent background task events as separate transcript cards', () => {
+    useChatStore.setState({
+      sessions: {
+        [ACTIVE_TAB]: makeSessionState({
+          messages: [{
+            id: 'background-task-agent-hidden',
+            type: 'background_task',
+            timestamp: 2,
+            task: {
+              taskId: 'agent-task-hidden',
+              toolUseId: 'agent-tool-hidden',
+              status: 'running',
+              taskType: 'local_agent',
+              summary: 'Running Read',
+              startedAt: 1,
+              updatedAt: 2,
+            },
+          }],
+        }),
+      },
+    })
+
+    render(<MessageList />)
+
+    expect(screen.queryByTestId('background-task-event-card')).toBeNull()
+    expect(screen.queryByText('local_agent')).toBeNull()
   })
 
   it('restores the full transcript when scrolling away from latest', async () => {

@@ -234,10 +234,17 @@ function upsertBackgroundTaskMessage(
   task: BackgroundAgentTask,
   timestamp: number,
 ): UIMessage[] {
-  const existingIndex = messages.findIndex((message) =>
+  const isSameTaskMessage = (message: UIMessage) =>
     message.type === 'background_task' &&
     (message.task.taskId === task.taskId ||
-      (task.toolUseId && message.task.toolUseId === task.toolUseId)))
+      (task.toolUseId && message.task.toolUseId === task.toolUseId))
+
+  if (isAgentBackgroundTask(task)) {
+    return messages.filter((message) => !isSameTaskMessage(message))
+  }
+
+  const existingIndex = messages.findIndex((message) =>
+    isSameTaskMessage(message))
   if (existingIndex === -1) {
     return [...messages, {
       id: `background-task-${task.taskId}`,
@@ -262,6 +269,15 @@ function mergeBackgroundTaskMessages(
     messages,
   )
   return [...merged].sort((a, b) => a.timestamp - b.timestamp)
+}
+
+function isAgentBackgroundTask(task: Pick<BackgroundAgentTask, 'taskType' | 'summary'>): boolean {
+  if (task.taskType === 'local_agent' || task.taskType === 'remote_agent') {
+    return true
+  }
+  return /^Agent (?:(?:"[^"]+" )?(completed|was stopped)|(?:"[^"]+" )?failed(?::|$))/.test(
+    task.summary ?? '',
+  )
 }
 
 function mergeRestoredTerminalGoalEvents(
