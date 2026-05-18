@@ -668,6 +668,7 @@ describe('Settings > Providers tab', () => {
     MOCK_DELETE_PROVIDER.mockReset()
     MOCK_GET_SETTINGS.mockResolvedValue({})
     MOCK_UPDATE_SETTINGS.mockResolvedValue({})
+    useSettingsStore.setState({ locale: 'en' })
     providerStoreState.providers = [
       {
         id: 'provider-1',
@@ -707,6 +708,19 @@ describe('Settings > Providers tab', () => {
     render(<Settings />)
 
     expect(screen.getByTestId('claude-official-login')).toBeInTheDocument()
+  })
+
+  it('shows ChatGPT Official as the active built-in provider', () => {
+    providerStoreState.providers = []
+    providerStoreState.activeId = 'openai-official'
+    providerStoreState.hasLoadedProviders = true
+
+    render(<Settings />)
+
+    const openAIProvider = screen.getByTestId('openai-official-provider')
+    expect(within(openAIProvider).getByText('ChatGPT Official')).toBeInTheDocument()
+    expect(within(openAIProvider).getByText('Default')).toBeInTheDocument()
+    expect(screen.queryByTestId('claude-official-login')).not.toBeInTheDocument()
   })
 
   it('requires confirmation before deleting a provider', async () => {

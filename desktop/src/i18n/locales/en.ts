@@ -277,6 +277,8 @@ export const en = {
   'settings.providers.addProvider': 'Add Provider',
   'settings.providers.officialName': 'Claude Official',
   'settings.providers.officialDesc': 'Anthropic native — no API key required',
+  'settings.providers.openaiOfficialName': 'ChatGPT Official',
+  'settings.providers.openaiOfficialDesc': 'OpenAI OAuth via your ChatGPT account — no API key required',
   'settings.providers.connected': 'Connected ({latency}ms)',
   'settings.providers.failed': 'Failed: {error}',
   'settings.providers.connectivityOk': '① Connectivity ({latency}ms)',

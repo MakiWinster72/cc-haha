@@ -279,6 +279,8 @@ export const zh: Record<TranslationKey, string> = {
   'settings.providers.addProvider': '添加服务商',
   'settings.providers.officialName': 'Claude 官方',
   'settings.providers.officialDesc': 'Anthropic 原生接入 — 无需 API 密钥',
+  'settings.providers.openaiOfficialName': 'ChatGPT 官方',
+  'settings.providers.openaiOfficialDesc': '通过 ChatGPT 账号完成 OpenAI OAuth — 无需 API 密钥',
   'settings.providers.connected': '已连接 ({latency}ms)',
   'settings.providers.failed': '失败: {error}',
   'settings.providers.connectivityOk': '① 连通 ({latency}ms)',

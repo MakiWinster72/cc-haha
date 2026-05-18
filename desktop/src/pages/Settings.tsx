@@ -32,6 +32,7 @@ import { ActivitySettings } from './ActivitySettings'
 import { MemorySettings } from './MemorySettings'
 import { useUIStore, type SettingsTab } from '../stores/uiStore'
 import { ClaudeOfficialLogin } from '../components/settings/ClaudeOfficialLogin'
+import { OPENAI_OFFICIAL_PROVIDER_ID } from '../constants/openaiOfficialProvider'
 import { useUpdateStore } from '../stores/updateStore'
 import { formatBytes } from '../lib/formatBytes'
 import { isTauriRuntime } from '../lib/desktopRuntime'
@@ -216,7 +217,8 @@ function ProviderSettings() {
     await fetchSettings()
   }
 
-  const isOfficialActive = hasLoadedProviders && activeId === null
+  const isClaudeOfficialActive = hasLoadedProviders && activeId === null
+  const isOpenAIOfficialActive = hasLoadedProviders && activeId === OPENAI_OFFICIAL_PROVIDER_ID
 
   return (
     <div className="max-w-2xl">
@@ -233,21 +235,22 @@ function ProviderSettings() {
 
       {/* Official provider — always visible at top */}
       <div
+        data-testid="claude-official-provider"
         className={`relative flex flex-col rounded-xl border transition-all mb-2 ${
-          isOfficialActive
+          isClaudeOfficialActive
             ? 'border-[var(--color-brand)] bg-[var(--color-surface-container)] shadow-[var(--shadow-focus-ring)]'
             : 'border-[var(--color-border)] hover:border-[var(--color-border-focus)] cursor-pointer'
         }`}
       >
         <div
           className="flex items-center gap-4 px-4 py-3.5"
-          onClick={() => !isOfficialActive && handleActivateOfficial()}
+          onClick={() => !isClaudeOfficialActive && handleActivateOfficial()}
         >
-          <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${isOfficialActive ? 'bg-[var(--color-success)]' : 'bg-[var(--color-text-tertiary)]'}`} />
+          <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${isClaudeOfficialActive ? 'bg-[var(--color-success)]' : 'bg-[var(--color-text-tertiary)]'}`} />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <span className="text-sm font-semibold text-[var(--color-text-primary)]">{t('settings.providers.officialName')}</span>
-              {isOfficialActive && (
+              {isClaudeOfficialActive && (
                 <span className="px-1.5 py-0.5 text-[10px] font-bold rounded border border-[var(--color-brand)]/18 bg-[var(--color-brand)]/14 text-[var(--color-brand)] leading-none">{t('settings.providers.default')}</span>
               )}
             </div>
@@ -255,11 +258,36 @@ function ProviderSettings() {
           </div>
         </div>
 
-        {isOfficialActive && (
+        {isClaudeOfficialActive && (
           <div className="px-4 pb-4 pt-3 border-t border-[var(--color-border-separator)]">
             <ClaudeOfficialLogin />
           </div>
         )}
+      </div>
+
+      <div
+        data-testid="openai-official-provider"
+        className={`relative flex flex-col rounded-xl border transition-all mb-2 ${
+          isOpenAIOfficialActive
+            ? 'border-[var(--color-brand)] bg-[var(--color-surface-container)] shadow-[var(--shadow-focus-ring)]'
+            : 'border-[var(--color-border)] hover:border-[var(--color-border-focus)] cursor-pointer'
+        }`}
+      >
+        <div
+          className="flex items-center gap-4 px-4 py-3.5"
+          onClick={() => !isOpenAIOfficialActive && handleActivate(OPENAI_OFFICIAL_PROVIDER_ID)}
+        >
+          <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${isOpenAIOfficialActive ? 'bg-[var(--color-success)]' : 'bg-[var(--color-text-tertiary)]'}`} />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-[var(--color-text-primary)]">{t('settings.providers.openaiOfficialName')}</span>
+              {isOpenAIOfficialActive && (
+                <span className="px-1.5 py-0.5 text-[10px] font-bold rounded border border-[var(--color-brand)]/18 bg-[var(--color-brand)]/14 text-[var(--color-brand)] leading-none">{t('settings.providers.default')}</span>
+              )}
+            </div>
+            <div className="text-xs text-[var(--color-text-tertiary)] mt-0.5">{t('settings.providers.openaiOfficialDesc')}</div>
+          </div>
+        </div>
       </div>
 
       {/* Saved providers */}
