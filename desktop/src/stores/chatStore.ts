@@ -799,9 +799,13 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           const shouldFlush = hasPendingStreamText && msg.state === 'idle'
           return {
             chatState: preserveStreamingTurn ? 'streaming' : msg.state,
-            ...(msg.verb && msg.verb !== 'Thinking' ? { statusVerb: msg.verb } : {}),
+            statusVerb: msg.state === 'idle'
+              ? ''
+              : msg.verb && msg.verb !== 'Thinking'
+                ? msg.verb
+                : '',
             ...(msg.tokens ? { tokenUsage: { ...session.tokenUsage, output_tokens: msg.tokens } } : {}),
-            ...(msg.state === 'idle' ? { activeThinkingId: null, statusVerb: '' } : {}),
+            ...(msg.state === 'idle' ? { activeThinkingId: null } : {}),
             ...(shouldFlush ? {
               messages: appendAssistantTextMessage(session.messages, pendingText, Date.now()),
               streamingText: '',

@@ -2230,6 +2230,41 @@ describe('chatStore history mapping', () => {
     vi.useRealTimers()
   })
 
+  it('clears transient worktree startup text when normal thinking resumes', () => {
+    useChatStore.setState({
+      sessions: {
+        [TEST_SESSION_ID]: makeSession({
+          chatState: 'idle',
+        }),
+      },
+    })
+
+    useChatStore.getState().handleServerMessage(TEST_SESSION_ID, {
+      type: 'status',
+      state: 'thinking',
+      verb: 'Creating worktree',
+    })
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.statusVerb).toBe('Creating worktree')
+
+    useChatStore.getState().handleServerMessage(TEST_SESSION_ID, {
+      type: 'status',
+      state: 'thinking',
+      verb: 'Thinking',
+    })
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.statusVerb).toBe('')
+
+    useChatStore.getState().handleServerMessage(TEST_SESSION_ID, {
+      type: 'status',
+      state: 'thinking',
+      verb: 'Creating worktree',
+    })
+    useChatStore.getState().handleServerMessage(TEST_SESSION_ID, {
+      type: 'status',
+      state: 'thinking',
+    })
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.statusVerb).toBe('')
+  })
+
   it('sends a desktop notification when the agent finishes a markdown reply', () => {
     vi.useFakeTimers()
 
