@@ -69,6 +69,10 @@ vi.mock('../components/settings/ClaudeOfficialLogin', () => ({
   ClaudeOfficialLogin: () => <div data-testid="claude-official-login" />,
 }))
 
+vi.mock('../components/settings/ChatGPTOfficialLogin', () => ({
+  ChatGPTOfficialLogin: () => <div data-testid="chatgpt-official-login" />,
+}))
+
 vi.mock('../pages/AdapterSettings', () => ({
   AdapterSettings: () => <div>Adapter Settings Mock</div>,
 }))
@@ -700,6 +704,16 @@ describe('Settings > Providers tab', () => {
     expect(screen.queryByTestId('claude-official-login')).not.toBeInTheDocument()
   })
 
+  it('does not query ChatGPT OAuth status before providers finish loading', () => {
+    providerStoreState.providers = []
+    providerStoreState.activeId = 'openai-official'
+    providerStoreState.hasLoadedProviders = false
+
+    render(<Settings />)
+
+    expect(screen.queryByTestId('chatgpt-official-login')).not.toBeInTheDocument()
+  })
+
   it('shows official OAuth status only after official provider is confirmed active', () => {
     providerStoreState.providers = []
     providerStoreState.activeId = null
@@ -720,6 +734,7 @@ describe('Settings > Providers tab', () => {
     const openAIProvider = screen.getByTestId('openai-official-provider')
     expect(within(openAIProvider).getByText('ChatGPT Official')).toBeInTheDocument()
     expect(within(openAIProvider).getByText('Default')).toBeInTheDocument()
+    expect(screen.getByTestId('chatgpt-official-login')).toBeInTheDocument()
     expect(screen.queryByTestId('claude-official-login')).not.toBeInTheDocument()
   })
 

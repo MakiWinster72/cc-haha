@@ -32,6 +32,7 @@ import { ActivitySettings } from './ActivitySettings'
 import { MemorySettings } from './MemorySettings'
 import { useUIStore, type SettingsTab } from '../stores/uiStore'
 import { ClaudeOfficialLogin } from '../components/settings/ClaudeOfficialLogin'
+import { ChatGPTOfficialLogin } from '../components/settings/ChatGPTOfficialLogin'
 import { OPENAI_OFFICIAL_PROVIDER_ID } from '../constants/openaiOfficialProvider'
 import { useUpdateStore } from '../stores/updateStore'
 import { formatBytes } from '../lib/formatBytes'
@@ -288,6 +289,12 @@ function ProviderSettings() {
             <div className="text-xs text-[var(--color-text-tertiary)] mt-0.5">{t('settings.providers.openaiOfficialDesc')}</div>
           </div>
         </div>
+
+        {isOpenAIOfficialActive && (
+          <div className="px-4 pb-4 pt-3 border-t border-[var(--color-border-separator)]">
+            <ChatGPTOfficialLogin />
+          </div>
+        )}
       </div>
 
       {/* Saved providers */}
