@@ -17,17 +17,8 @@ import { anthropicToOpenaiResponses } from '../proxy/transform/anthropicToOpenai
 import { openaiChatToAnthropic } from '../proxy/transform/openaiChatToAnthropic.js'
 import { openaiResponsesToAnthropic } from '../proxy/transform/openaiResponsesToAnthropic.js'
 import type { AnthropicRequest, AnthropicResponse } from '../proxy/transform/types.js'
-import { PROVIDER_PRESETS } from '../config/providerPresets.js'
-import { MODEL_CONTEXT_WINDOWS_ENV_KEY } from '../../utils/model/modelContextWindows.js'
 import {
-  ATTRIBUTION_HEADER_ENV_KEY,
-  attributionHeaderEnvForModel,
-} from './attributionHeaderPolicy.js'
-import {
-  OPENAI_CODEX_OAUTH_FILE_ENV_KEY,
   OPENAI_OFFICIAL_PROVIDER,
-  OPENAI_OAUTH_PROVIDER_ENV_KEY,
-  buildOpenAIOfficialRuntimeEnv,
   isOpenAIOfficialProviderId,
 } from './openaiOfficialProvider.js'
 import { hahaOpenAIOAuthService } from './hahaOpenAIOAuthService.js'
@@ -35,6 +26,15 @@ import {
   CURRENT_PROVIDER_INDEX_SCHEMA_VERSION,
   ensurePersistentStorageUpgraded,
 } from './persistentStorageMigrations.js'
+import {
+  buildProviderAuthEnv,
+  buildProviderManagedEnv,
+  getManagedEnvKeys,
+  getPresetAuthStrategy,
+  getPresetDefaultEnv,
+  normalizeModelMapping,
+  normalizeProvidersIndex,
+} from './providerRuntimeEnv.js'
 import type {
   SavedProvider,
   ProvidersIndex,
@@ -47,172 +47,10 @@ import type {
   ProviderAuthStrategy,
 } from '../types/provider.js'
 
-const MANAGED_ENV_KEYS = [
-  'ANTHROPIC_BASE_URL',
-  'ANTHROPIC_API_KEY',
-  'ANTHROPIC_AUTH_TOKEN',
-  'ANTHROPIC_MODEL',
-  'ANTHROPIC_DEFAULT_HAIKU_MODEL',
-  'ANTHROPIC_DEFAULT_HAIKU_MODEL_SUPPORTED_CAPABILITIES',
-  'ANTHROPIC_DEFAULT_SONNET_MODEL',
-  'ANTHROPIC_DEFAULT_SONNET_MODEL_SUPPORTED_CAPABILITIES',
-  'ANTHROPIC_DEFAULT_OPUS_MODEL',
-  'ANTHROPIC_DEFAULT_OPUS_MODEL_SUPPORTED_CAPABILITIES',
-  'CLAUDE_CODE_AUTO_COMPACT_WINDOW',
-  ATTRIBUTION_HEADER_ENV_KEY,
-  MODEL_CONTEXT_WINDOWS_ENV_KEY,
-  OPENAI_OAUTH_PROVIDER_ENV_KEY,
-  OPENAI_CODEX_OAUTH_FILE_ENV_KEY,
-] as const
-
-const CUSTOM_PROVIDER_MODEL_CAPABILITIES = 'thinking,effort,adaptive_thinking,max_effort'
-
 const DEFAULT_INDEX: ProvidersIndex = {
   schemaVersion: CURRENT_PROVIDER_INDEX_SCHEMA_VERSION,
   activeId: null,
   providers: [],
-}
-const AUTH_ENV_KEYS = new Set(['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN'])
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === 'object' && !Array.isArray(value)
-}
-
-function isProviderModels(value: unknown): value is SavedProvider['models'] {
-  return (
-    isRecord(value) &&
-    typeof value.main === 'string' &&
-    typeof value.haiku === 'string' &&
-    typeof value.sonnet === 'string' &&
-    typeof value.opus === 'string'
-  )
-}
-
-function isSavedProvider(value: unknown): value is SavedProvider {
-  if (!isRecord(value)) return false
-  const runtimeKind = value.runtimeKind
-  return (
-    typeof value.id === 'string' &&
-    typeof value.presetId === 'string' &&
-    typeof value.name === 'string' &&
-    typeof value.apiKey === 'string' &&
-    typeof value.baseUrl === 'string' &&
-    (
-      runtimeKind === undefined ||
-      runtimeKind === 'anthropic_compatible' ||
-      runtimeKind === 'openai_oauth'
-    ) &&
-    isProviderModels(value.models)
-  )
-}
-
-function normalizeModelMapping(models: SavedProvider['models']): SavedProvider['models'] {
-  const main = models.main.trim()
-  return {
-    main,
-    haiku: models.haiku.trim() || main,
-    sonnet: models.sonnet.trim() || main,
-    opus: models.opus.trim() || main,
-  }
-}
-
-function normalizeSavedProvider(provider: SavedProvider): SavedProvider {
-  return {
-    ...provider,
-    apiFormat: provider.apiFormat ?? 'anthropic',
-    runtimeKind: provider.runtimeKind ?? 'anthropic_compatible',
-    models: normalizeModelMapping(provider.models),
-  }
-}
-
-function normalizeProvidersIndex(value: unknown): ProvidersIndex | null {
-  if (!isRecord(value) || !Array.isArray(value.providers)) {
-    return null
-  }
-
-  const { activeProviderId: _legacyActiveProviderId, ...rest } = value
-  const providers = value.providers
-    .filter(isSavedProvider)
-    .map((provider) => normalizeSavedProvider(provider))
-  const rawActiveId =
-    typeof value.activeId === 'string'
-      ? value.activeId
-      : typeof _legacyActiveProviderId === 'string'
-        ? _legacyActiveProviderId
-        : null
-  const activeId = rawActiveId && (
-    providers.some((provider) => provider.id === rawActiveId) ||
-    isOpenAIOfficialProviderId(rawActiveId)
-  )
-    ? rawActiveId
-    : null
-
-  return {
-    ...rest,
-    schemaVersion: CURRENT_PROVIDER_INDEX_SCHEMA_VERSION,
-    activeId,
-    providers,
-  }
-}
-
-function getPresetDefaultEnv(presetId: string): Record<string, string> {
-  return PROVIDER_PRESETS.find((preset) => preset.id === presetId)?.defaultEnv ?? {}
-}
-
-function omitAuthEnv(env: Record<string, string>): Record<string, string> {
-  return Object.fromEntries(
-    Object.entries(env).filter(([key]) => !AUTH_ENV_KEYS.has(key.toUpperCase())),
-  )
-}
-
-function getPresetAuthStrategy(presetId: string): ProviderAuthStrategy {
-  return PROVIDER_PRESETS.find((preset) => preset.id === presetId)?.authStrategy ?? 'auth_token'
-}
-
-function getPresetModelContextWindows(presetId: string): Record<string, number> {
-  return PROVIDER_PRESETS.find((preset) => preset.id === presetId)?.modelContextWindows ?? {}
-}
-
-function buildProviderAuthEnv(
-  provider: SavedProvider,
-  presetDefaultEnv: Record<string, string>,
-  needsProxy: boolean,
-): Record<string, string> {
-  if (needsProxy) {
-    return { ANTHROPIC_API_KEY: 'proxy-managed' }
-  }
-
-  const strategy = provider.authStrategy ?? getPresetAuthStrategy(provider.presetId)
-  const key = provider.apiKey || presetDefaultEnv.ANTHROPIC_AUTH_TOKEN || presetDefaultEnv.ANTHROPIC_API_KEY || ''
-
-  switch (strategy) {
-    case 'api_key':
-      return key ? { ANTHROPIC_API_KEY: key } : {}
-    case 'auth_token':
-      return {
-        ANTHROPIC_API_KEY: '',
-        ...(key ? { ANTHROPIC_AUTH_TOKEN: key } : {}),
-      }
-    case 'auth_token_empty_api_key':
-      return {
-        ANTHROPIC_API_KEY: '',
-        ...(key ? { ANTHROPIC_AUTH_TOKEN: key } : {}),
-      }
-    case 'dual_same_token':
-      return key ? { ANTHROPIC_API_KEY: key, ANTHROPIC_AUTH_TOKEN: key } : {}
-    case 'dual_dummy':
-      return { ANTHROPIC_API_KEY: 'dummy', ANTHROPIC_AUTH_TOKEN: 'dummy' }
-  }
-}
-
-function getManagedEnvKeys(): string[] {
-  const keys = new Set<string>(MANAGED_ENV_KEYS)
-  for (const preset of PROVIDER_PRESETS) {
-    for (const key of Object.keys(preset.defaultEnv ?? {})) {
-      keys.add(key)
-    }
-  }
-  return [...keys]
 }
 
 export class ProviderService {
@@ -402,48 +240,10 @@ export class ProviderService {
     provider: SavedProvider,
     options?: { proxyPath?: string },
   ): Record<string, string> {
-    if (provider.runtimeKind === 'openai_oauth') {
-      return buildOpenAIOfficialRuntimeEnv()
-    }
-
-    const needsProxy = provider.apiFormat != null && provider.apiFormat !== 'anthropic'
-    const proxyPath = options?.proxyPath ?? '/proxy'
-    const baseUrl = needsProxy
-      ? `http://127.0.0.1:${ProviderService.serverPort}${proxyPath}`
-      : provider.baseUrl
-
-    const modelContextWindows = {
-      ...getPresetModelContextWindows(provider.presetId),
-      ...(provider.modelContextWindows ?? {}),
-    }
-
-    const presetDefaultEnv = getPresetDefaultEnv(provider.presetId)
-    const customProviderCapabilityEnv =
-      provider.presetId === 'custom'
-        ? {
-            ANTHROPIC_DEFAULT_HAIKU_MODEL_SUPPORTED_CAPABILITIES: CUSTOM_PROVIDER_MODEL_CAPABILITIES,
-            ANTHROPIC_DEFAULT_SONNET_MODEL_SUPPORTED_CAPABILITIES: CUSTOM_PROVIDER_MODEL_CAPABILITIES,
-            ANTHROPIC_DEFAULT_OPUS_MODEL_SUPPORTED_CAPABILITIES: CUSTOM_PROVIDER_MODEL_CAPABILITIES,
-          }
-        : {}
-
-    return {
-      ...omitAuthEnv(presetDefaultEnv),
-      ...customProviderCapabilityEnv,
-      ...(provider.autoCompactWindow !== undefined && {
-        CLAUDE_CODE_AUTO_COMPACT_WINDOW: String(provider.autoCompactWindow),
-      }),
-      ...(Object.keys(modelContextWindows).length > 0 && {
-        [MODEL_CONTEXT_WINDOWS_ENV_KEY]: JSON.stringify(modelContextWindows),
-      }),
-      ANTHROPIC_BASE_URL: baseUrl,
-      ...buildProviderAuthEnv(provider, presetDefaultEnv, needsProxy),
-      ANTHROPIC_MODEL: provider.models.main,
-      ANTHROPIC_DEFAULT_HAIKU_MODEL: provider.models.haiku,
-      ANTHROPIC_DEFAULT_SONNET_MODEL: provider.models.sonnet,
-      ANTHROPIC_DEFAULT_OPUS_MODEL: provider.models.opus,
-      ...attributionHeaderEnvForModel(provider.models.main),
-    }
+    return buildProviderManagedEnv(provider, {
+      proxyPath: options?.proxyPath,
+      serverPort: ProviderService.serverPort,
+    })
   }
 
   async getProviderRuntimeEnv(id: string): Promise<Record<string, string>> {
