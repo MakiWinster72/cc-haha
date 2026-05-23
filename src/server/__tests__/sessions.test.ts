@@ -2026,11 +2026,11 @@ describe('Sessions API', () => {
     }
   })
 
-  it('GET /api/sessions/:id/git-info should include isolated worktree identity', async () => {
+  it('GET /api/sessions/:id/git-info should keep the visible launch branch while including isolated worktree identity', async () => {
     const workDir = await createCleanGitRepo(tmpDir)
     const { sessionId } = await sessionService.createSession(
       workDir,
-      { branch: 'main', worktree: true },
+      { branch: 'feature/rail', worktree: true },
     )
     const launchInfo = await sessionService.getSessionLaunchInfo(sessionId)
     const repository = launchInfo?.repository
@@ -2038,7 +2038,7 @@ describe('Sessions API', () => {
     expect(repository?.worktreeBranch).toBeTruthy()
 
     const activeWorktree = repository!.worktreePath!
-    git(workDir, 'worktree', 'add', '-b', repository!.worktreeBranch!, activeWorktree, 'main')
+    git(workDir, 'worktree', 'add', '-b', repository!.worktreeBranch!, activeWorktree, 'feature/rail')
     const sessionsMap = (conversationService as any).sessions as Map<string, { workDir: string }>
 
     sessionsMap.set(sessionId, { workDir: activeWorktree })
@@ -2058,7 +2058,7 @@ describe('Sessions API', () => {
           branch: string | null
         } | null
       }
-      expect(body.branch).toBe(repository!.worktreeBranch)
+      expect(body.branch).toBe('feature/rail')
       expect(body.workDir).toBe(activeWorktree)
       expect(body.worktree).toEqual({
         enabled: true,
@@ -2103,7 +2103,7 @@ describe('Sessions API', () => {
         branch: string | null
       } | null
     }
-    expect(body.branch).toBe('worktree-desktop-main-12345678')
+    expect(body.branch).toBe('main')
     expect(body.workDir).toBe(activeWorktree)
     expect(body.worktree).toEqual({
       enabled: true,
@@ -2157,7 +2157,7 @@ describe('Sessions API', () => {
         branch: string | null
       } | null
     }
-    expect(body.branch).toBe('worktree-desktop-main-12345678')
+    expect(body.branch).toBe('main')
     expect(body.worktree).toMatchObject({
       path: activeWorktree,
       plannedPath: activeWorktree,

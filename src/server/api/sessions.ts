@@ -670,9 +670,11 @@ async function getGitInfo(sessionId: string): Promise<Response> {
       sameResolvedPath(workDir, worktree.path) ||
       sameResolvedPath(workDir, worktree.plannedPath)
     )
-    const branch = materializedWorktree
-      ? (gitBranch || worktree.branch || sessionBranch)
-      : (sessionBranch || gitBranch)
+    const branch = sessionBranch || (
+      materializedWorktree
+        ? (worktree.branch || gitBranch)
+        : gitBranch
+    )
 
     // Get repo name from remote or directory
     let repoName = ''
