@@ -310,7 +310,7 @@ function TraceRow({
         </div>
         <div className="grid shrink-0 grid-cols-[3.5rem_4rem_4rem] items-center gap-3">
           <MetricCell label={t('trace.apiCalls')} value={String(trace.summary.apiCalls)} />
-          <MetricCell label={t('trace.duration')} value={formatDuration(trace.summary.totalDurationMs)} />
+          <MetricCell label={t('trace.modelTime')} value={formatDuration(trace.summary.totalDurationMs)} />
           <MetricCell label={t('trace.tokens')} value={formatCompact(totalTokens)} />
         </div>
       </button>

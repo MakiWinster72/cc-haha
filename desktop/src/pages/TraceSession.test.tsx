@@ -200,6 +200,12 @@ describe('TraceSession', () => {
     const detail = within(screen.getByTestId('trace-detail'))
     expect(detail.getByTestId('trace-overview')).toBeInTheDocument()
     expect(detail.getByText('LLM calls')).toBeInTheDocument()
+    expect(detail.getAllByText('Wall time').length).toBeGreaterThan(0)
+    expect(detail.getAllByText('6.00s').length).toBeGreaterThan(0)
+    expect(detail.getAllByText('Model time').length).toBeGreaterThan(0)
+    expect(detail.getAllByText('2.00s').length).toBeGreaterThan(0)
+    expect(detail.getByText('Tool time')).toBeInTheDocument()
+    expect(detail.getAllByText('1.00s').length).toBeGreaterThan(0)
 
     // Timeline rows for messages, the model call, and the tool call.
     const tree = within(screen.getByTestId('trace-tree'))
@@ -238,6 +244,9 @@ describe('TraceSession', () => {
 
     const detail = within(screen.getByTestId('trace-detail'))
     expect(detail.getByRole('heading', { level: 2, name: 'Bash' })).toBeInTheDocument()
+    expect(detail.getByText('Duration')).toBeInTheDocument()
+    expect(detail.getByText('1.00s')).toBeInTheDocument()
+    expect(detail.getAllByText('Completed').length).toBeGreaterThan(0)
     expect(detail.getByTestId('trace-tool-detail')).toBeInTheDocument()
     expect(detail.getByText('Input')).toBeInTheDocument()
     expect(detail.getByText('Result')).toBeInTheDocument()

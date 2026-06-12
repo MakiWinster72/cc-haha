@@ -121,6 +121,8 @@ describe('traceViewModel', () => {
       status: 'ok',
       title: 'Bash',
       subtitle: 'ls -la /tmp',
+      completedAt: '2026-06-09T10:00:03.000Z',
+      durationMs: 1000,
     })
     expect(tool?.childIds[0]).toMatch(/^tool_result:/)
     expect(viewModel.spansById.get(tool?.childIds[0] ?? '')).toMatchObject({
@@ -134,6 +136,41 @@ describe('traceViewModel', () => {
       status: 'ok',
     })
     expect(viewModel.spansById.get('llm:call-1')?.childIds).toContain('event:event-1')
+  })
+
+  it('calculates wall-clock timing for turns and the session from span end times', () => {
+    const viewModel = buildTraceViewModel(trace, messages)
+
+    expect(viewModel.spansById.get('turn:0')).toMatchObject({
+      completedAt: '2026-06-09T10:00:04.700Z',
+      durationMs: 4700,
+    })
+    expect(viewModel.spansById.get(viewModel.rootId)).toMatchObject({
+      completedAt: '2026-06-09T10:00:04.700Z',
+      durationMs: 4700,
+    })
+    expect(viewModel.diagnosis.lastActivityAt).toBe('2026-06-09T10:00:04.700Z')
+  })
+
+  it('shows elapsed time for pending tools without marking them completed', () => {
+    const viewModel = buildTraceViewModel(trace, messages.slice(0, 2), {
+      now: '2026-06-09T10:00:07.000Z',
+    })
+
+    expect(viewModel.spansById.get('tool:tool-1')).toMatchObject({
+      status: 'pending',
+      durationMs: 5000,
+    })
+    expect(viewModel.spansById.get('tool:tool-1')?.completedAt).toBeUndefined()
+    expect(viewModel.spansById.get('turn:0')).toMatchObject({
+      status: 'pending',
+      durationMs: 7000,
+    })
+    expect(viewModel.spansById.get(viewModel.rootId)).toMatchObject({
+      status: 'pending',
+      durationMs: 7000,
+    })
+    expect(viewModel.diagnosis.lastActivityAt).toBe('2026-06-09T10:00:07.000Z')
   })
 
   it('passes call usage through to llm spans as tokenUsage', () => {

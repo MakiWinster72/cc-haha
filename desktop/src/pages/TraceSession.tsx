@@ -52,6 +52,7 @@ export function TraceSession({
   const [refreshNonce, setRefreshNonce] = useState(0)
   const [lastLoadedAt, setLastLoadedAt] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
+  const [clockNowMs, setClockNowMs] = useState(() => Date.now())
   const snapshotSignatureRef = useRef<string | null>(null)
   const lastSpanIdRef = useRef<string | null>(null)
 
@@ -75,6 +76,7 @@ export function TraceSession({
         if (silent && snapshotSignatureRef.current === signature) return
         snapshotSignatureRef.current = signature
         setState({ status: 'ready', trace, messages: messageResponse.messages })
+        setClockNowMs(Date.now())
         setLastLoadedAt(new Date().toISOString())
       } catch (error) {
         if (cancelled) return
@@ -112,9 +114,18 @@ export function TraceSession({
 
   const readyState = state.status === 'ready' ? state : null
   const viewModel = useMemo(
-    () => readyState ? buildTraceViewModel(readyState.trace, readyState.messages) : null,
-    [readyState],
+    () => readyState
+      ? buildTraceViewModel(readyState.trace, readyState.messages, { now: new Date(clockNowMs).toISOString() })
+      : null,
+    [readyState, clockNowMs],
   )
+
+  useEffect(() => {
+    if (!viewModel) return
+    if (viewModel.diagnosis.pendingModelCalls === 0 && viewModel.diagnosis.pendingToolCalls === 0) return
+    const timer = window.setInterval(() => setClockNowMs(Date.now()), 1000)
+    return () => window.clearInterval(timer)
+  }, [viewModel?.diagnosis.pendingModelCalls, viewModel?.diagnosis.pendingToolCalls])
 
   useEffect(() => {
     if (!viewModel) return
@@ -284,7 +295,7 @@ function TraceHeader({
             {summary.failedCalls > 0 ? (
               <MetaChip label={t('trace.failedCalls')} value={String(summary.failedCalls)} tone="danger" />
             ) : null}
-            <MetaChip label={t('trace.duration')} value={formatDurationMs(summary.totalDurationMs)} />
+            <MetaChip label={t('trace.modelTime')} value={formatDurationMs(summary.totalDurationMs)} />
             <MetaChip
               label={t('trace.tokens')}
               value={formatTokenCount(summary.totalInputTokens + summary.totalOutputTokens)}
