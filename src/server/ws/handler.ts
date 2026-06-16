@@ -1825,6 +1825,34 @@ export function translateCliMessage(cliMsg: any, sessionId: string): ServerMessa
           },
         ]
       }
+      if (subtype === 'agent_tool_activity') {
+        // Tool activity streamed from a background (async) agent. Re-emit as a
+        // normal tool_use_complete / tool_result carrying the parent Agent
+        // tool_use_id, so the desktop groups it under the agent card exactly
+        // like a synchronous subagent (childToolCallsByParent).
+        const activity = cliMsg.activity
+        const parentToolUseId =
+          typeof cliMsg.tool_use_id === 'string' ? cliMsg.tool_use_id : undefined
+        if (activity?.kind === 'tool_use') {
+          return [{
+            type: 'tool_use_complete',
+            toolName: activity.tool_name,
+            toolUseId: activity.tool_use_id,
+            input: activity.input,
+            parentToolUseId,
+          }]
+        }
+        if (activity?.kind === 'tool_result') {
+          return [{
+            type: 'tool_result',
+            toolUseId: activity.tool_use_id,
+            content: activity.content,
+            isError: activity.is_error === true,
+            parentToolUseId,
+          }]
+        }
+        return []
+      }
       if (subtype === 'session_state_changed') {
         return [{
           type: 'system_notification',
