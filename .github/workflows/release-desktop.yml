@@ -161,7 +161,7 @@ jobs:
       - name: Build signed macOS Electron release artifacts
         if: matrix.smoke_platform == 'macos' && needs.signing-preflight.outputs.macos_signed == 'true'
         working-directory: desktop
-        timeout-minutes: 45
+        timeout-minutes: 90
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DEBUG: 'electron-builder,electron-osx-sign,electron-notarize*'
@@ -183,9 +183,23 @@ jobs:
           xcrun notarytool --version || true
           security find-identity -v -p codesigning || true
           echo "::endgroup::"
-          echo "Starting signed electron-builder at $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
-          node ./node_modules/electron-builder/out/cli/cli.js ${{ matrix.builder_args }} --publish never
-          echo "Finished signed electron-builder at $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+          max_attempts=2
+          for attempt in $(seq 1 "$max_attempts"); do
+            echo "Starting signed electron-builder attempt ${attempt}/${max_attempts} at $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+            rm -rf build-artifacts/electron
+            if node ./node_modules/electron-builder/out/cli/cli.js ${{ matrix.builder_args }} --publish never; then
+              echo "Finished signed electron-builder attempt ${attempt}/${max_attempts} at $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+              exit 0
+            fi
+
+            status=$?
+            if [ "$attempt" -eq "$max_attempts" ]; then
+              echo "::error::Signed electron-builder failed after ${max_attempts} attempts"
+              exit "$status"
+            fi
+            echo "::warning::Signed electron-builder attempt ${attempt}/${max_attempts} failed with exit code ${status}; retrying after 120 seconds"
+            sleep 120
+          done
 
       - name: Build unsigned Electron release artifacts
         if: matrix.smoke_platform != 'macos' || needs.signing-preflight.outputs.macos_signed != 'true'
